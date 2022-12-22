@@ -47,12 +47,12 @@ fn pdf_latex(input_string: &str) -> Result<Vec<u8>, tectonic::Error> {
     let mut status = tectonic::status::plain::PlainStatusBackend::default();
 
     let auto_create_config_file = false;
-    let config = tectonic::config::PersistentConfig::open(auto_create_config_file).expect("Failed to open the default configuration file");
+    let config = tectonic::config::PersistentConfig::open(auto_create_config_file).expect("Failed to open the default configuration file!");
 
     let only_cached = false;
-    let bundle = config.default_bundle(only_cached, &mut status).expect("Failed to load the default resource bundle");
+    let bundle = config.default_bundle(only_cached, &mut status).expect("Failed to load the default resource bundle!");
 
-    let format_cache_path = config.format_cache_path().expect("Failed to set up the format cache");
+    let format_cache_path = config.format_cache_path().expect("Failed to set up the format cache!");
 
     let mut files = {
         // Looking forward to non-lexical lifetimes!
@@ -69,10 +69,10 @@ fn pdf_latex(input_string: &str) -> Result<Vec<u8>, tectonic::Error> {
             .do_not_write_output_files();
 
         let mut sess =
-            sb.create(&mut status).expect("Failed to initialize the LaTeX processing session");
+            sb.create(&mut status).expect("Failed to initialize the LaTeX processing session!");
 
         if let Err(w) = sess.run(&mut status) {
-            eprintln!("the LaTeX engine failed");
+            eprintln!("The LaTeX engine failed!");
             return Err(w);
         }
         sess.into_file_data()
@@ -93,7 +93,7 @@ fn resize_image() -> Result<Vec<u8>, MagickError> {
         magick_wand_genesis();
     });
     let wand = MagickWand::new();
-    (wand.read_image("./frogJester.png")).expect("Reading image failed");
+    (wand.read_image("./frogJester.png")).expect("Reading image failed!");
     wand.fit(64, 64);
     wand.write_image_blob("jpeg")
 }
@@ -104,8 +104,8 @@ fn convert_pdf_png(pdf_doc: &[u8]) -> Result<Vec<u8>, MagickError> {//TODO set b
     });
     let wand = MagickWand::new();
     wand.set_resolution(500f64, 500f64)
-        .expect("Setting resolution failed");
-    wand.read_image_blob(pdf_doc).expect("Reading PDF failed");
+        .expect("Setting resolution failed!");
+    wand.read_image_blob(pdf_doc).expect("Reading PDF failed!");
     wand.write_image_blob("png")
 }
 
@@ -134,11 +134,11 @@ async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
                                  &image,
                                  AttachmentConfig::new())
                 .await
-                .expect("sending image failed");
+                .expect("Sending image failed!");
         }
     }
     if "!math".is_prefix_of(&text_content.body) {
-        let tex_string = text_content.body.strip_prefix("!math").expect("Prefix not existing");
+        let tex_string = text_content.body.strip_prefix("!math").expect("Prefix not existing.");
         if let Ok(pdf_doc) = pdf_latex(tex_string){
             if let Ok(image) = convert_pdf_png(&pdf_doc) {
                 room.send_attachment("fancy equation",
@@ -146,9 +146,9 @@ async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
                                      &image,
                                      AttachmentConfig::new())
                     .await
-                    .expect("sending equation failed!");
+                    .expect("Sending equation failed!");
             }else{
-                eprintln!("image conversion failed!");
+                eprintln!("Image conversion failed!");
             }
         }else{
             let content = RoomMessageEventContent::text_plain("Invalid syntax!");
@@ -172,7 +172,7 @@ async fn login_and_sync(
 
     client.login_username(&cred.username, &cred.password)
             .initial_device_display_name("command bot")
-            .send().await.expect("Login failed");
+            .send().await.expect("Login failed!");
     let response = client.sync_once(SyncSettings::default()).await.unwrap();
     client.add_event_handler(move |ev, room| on_room_message(ev, room));
     let settings = SyncSettings::default().token(response.next_batch);
@@ -190,9 +190,9 @@ fn write_example_credentials(){
             .write(true)
             .create(true)
             .open("bot_credentials.yml")
-            .expect("Couldn't open file");
+            .expect("Couldn't open file.");
         serde_yaml::to_writer(f, &cred).unwrap();
-        println!("Failed to read credential file\nexample file written");
+        println!("Failed to read credential file!\nExample file written instead.");
 }
 
 #[tokio::main]
