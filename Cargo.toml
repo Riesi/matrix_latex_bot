@@ -1,0 +1,32 @@
+[package]
+name = "matrix_latex_bot"
+version = "0.1.0"
+edition = "2021"
+
+[profile.release]
+incremental = true
+
+[profile.dev]
+incremental = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "matrix_latex_bot"
+test = false
+
+[dependencies]
+serde_yaml = "0.9.16"
+serde = "1.0.151"
+
+tectonic = "0.12.0"
+tectonic_bridge_core = "0.3.1"
+tectonic_bundles = "0.3.0"
+
+magick_rust = "0.17.0"
+
+matrix-sdk = "0.6.2"
+tracing-subscriber = "0.3.16"
+url = "2.3.1"
+mime = "0.3.16"
+tokio = {version = "1.23.0", features = ["macros", "rt-multi-thread"] }
+anyhow = "1.0.68"
