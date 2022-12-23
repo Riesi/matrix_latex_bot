@@ -66,6 +66,12 @@ async fn login_and_sync(
             .send().await.expect("Login failed!");
     let response = client.sync_once(SyncSettings::default()).await.unwrap();
     client.add_event_handler(move |ev, room| on_room_message(ev, room));
+    let rooms = client.invited_rooms();
+    for room in rooms{ // TODO don't blindly join every invite
+        println!("user_id: {}, room_id: {}", room.client().user_id().unwrap(), room.room_id());
+        client.join_room_by_id(room.room_id()).await.expect("Joining room failed!");
+    }
+    //client.join_room_by_id()
     let settings = SyncSettings::default().token(response.next_batch);
     client.sync(settings).await?;
     Ok(())
