@@ -19,30 +19,11 @@ async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
     let Room::Joined(room) = room else { return };
     let MessageType::Text(text_content) = event.content.msgtype else { return };
 
-    if "!image".is_prefix_of(&text_content.body) {
-        let image = fs::read("./frogJester.png").expect("Can't open image file.");
-        room.send_attachment("frog",
-                             &mime::IMAGE_JPEG,
-                             &image,
-                             AttachmentConfig::new())
-            .await
-            .expect("sending image failed");
-    }
     if "!ping".is_prefix_of(&text_content.body) {
         let content = RoomMessageEventContent::text_plain("🏓 pong 🏓");
         room.send(content, None).await.expect("Pong failed!");
     }
 
-    if "!res".is_prefix_of(&text_content.body) {
-        if let Ok(image) = latex_utils::resize_image(){
-            room.send_attachment("scaled frog",
-                                 &mime::IMAGE_JPEG,
-                                 &image,
-                                 AttachmentConfig::new())
-                .await
-                .expect("Sending image failed!");
-        }
-    }
     if "!math".is_prefix_of(&text_content.body) {
         let tex_string = text_content.body.strip_prefix("!math").expect("Prefix not existing.");
         if let Ok(pdf_doc) = latex_utils::pdf_latex(tex_string){

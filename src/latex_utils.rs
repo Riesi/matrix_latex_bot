@@ -64,16 +64,6 @@ pub fn pdf_latex(input_string: &str) -> Result<Vec<u8>, tectonic::Error> {
 
 static START: Once = Once::new();
 
-pub fn resize_image() -> Result<Vec<u8>, MagickError> {
-    START.call_once(|| {
-        magick_wand_genesis();
-    });
-    let wand = MagickWand::new();
-    (wand.read_image("./frogJester.png")).expect("Reading image failed!");
-    wand.fit(64, 64);
-    wand.write_image_blob("jpeg")
-}
-
 pub fn convert_pdf_png(pdf_doc: &[u8]) -> Result<Vec<u8>, MagickError> {//TODO set background and font color
     START.call_once(|| {
         magick_wand_genesis();
