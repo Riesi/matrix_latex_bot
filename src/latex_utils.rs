@@ -12,7 +12,7 @@ pub fn pdf_latex(input_string: &str) -> Result<Vec<u8>, tectonic::Error> {
         \usepackage{color}
         \usepackage{xcolor}
         \usepackage{dsfont}
-        \begin{document}
+        \begin{document}\color{white}
         "#;
 
     let template_end = r#"
@@ -63,7 +63,7 @@ pub fn pdf_latex(input_string: &str) -> Result<Vec<u8>, tectonic::Error> {
 
 static START: Once = Once::new();
 
-pub fn convert_pdf_png(pdf_doc: &[u8]) -> Result<Vec<u8>, MagickError> {//TODO set background and font color
+pub fn convert_pdf_png(pdf_doc: &[u8]) -> Result<Vec<u8>, MagickError> {
     START.call_once(|| {
         magick_wand_genesis();
     });
