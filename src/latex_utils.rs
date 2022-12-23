@@ -12,11 +12,11 @@ pub fn pdf_latex(input_string: &str) -> Result<Vec<u8>, tectonic::Error> {
         \usepackage{color}
         \usepackage{xcolor}
         \usepackage{dsfont}
-        \begin{document}\color{white}
+        \begin{document}{\color{white}
         "#;
 
     let template_end = r#"
-        \end{document}
+        }\end{document}
         "#;
 
     let mut status = tectonic::status::plain::PlainStatusBackend::default();
