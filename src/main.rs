@@ -1,5 +1,5 @@
 #![feature(pattern)]
-use std::{fs, process::exit};
+use std::{process::exit};
 use std::str::pattern::Pattern;
 
 mod latex_utils;
@@ -13,7 +13,24 @@ use matrix_sdk::{
     ruma::events::room::message::{MessageType, OriginalSyncRoomMessageEvent, RoomMessageEventContent},
     Client,
 };
+use matrix_sdk::room::Joined;
 use url::Url;
+
+async fn latex_handling(room: Joined, tex_string: String){
+        if let Ok(image) = tokio::task::spawn_blocking(move || {
+            latex_utils::latex_tex_png(&tex_string)
+        }).await.expect("LaTeX future didn't hold!"){
+            room.send_attachment("LaTeX image",
+                                 &mime::IMAGE_PNG,
+                                 &image,
+                                 AttachmentConfig::new())
+                .await
+                .expect("Sending equation failed!");
+        }else{
+            let content = RoomMessageEventContent::text_plain("Invalid syntax!");
+            room.send(content, None).await.expect("Feedback failed!");
+        }
+}
 
 async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
     let Room::Joined(room) = room else { return };
@@ -26,24 +43,11 @@ async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
 
     if "!math".is_prefix_of(&text_content.body) {
         let tex_string = text_content.body.strip_prefix("!math").expect("Prefix not existing.");
-        if let Ok(pdf_doc) = latex_utils::pdf_latex(tex_string){
-            if let Ok(image) = latex_utils::convert_pdf_png(&pdf_doc) {
-                room.send_attachment("fancy equation",
-                                     &mime::IMAGE_PNG,
-                                     &image,
-                                     AttachmentConfig::new())
-                    .await
-                    .expect("Sending equation failed!");
-            }else{
-                eprintln!("Image conversion failed!");
-            }
-        }else{
-            let content = RoomMessageEventContent::text_plain("Invalid syntax!");
-            room.send(content, None).await.expect("Feedback failed!");
-        }
-
-    }
-    if "!halt".is_prefix_of(&text_content.body) {
+        latex_handling(room,("$\\displaystyle\n".to_owned() + tex_string + "$").to_string()).await;
+    }else if "!tex".is_prefix_of(&text_content.body) {
+        let tex_string = text_content.body.strip_prefix("!tex").expect("Prefix not existing.").to_string();
+        latex_handling(room,tex_string.to_string()).await;
+    }else if "!halt".is_prefix_of(&text_content.body) {
         let content = RoomMessageEventContent::text_plain("Bye! 👋");
         room.send(content, None).await.expect("Bye failed!");
         exit(0);

@@ -13,10 +13,9 @@ pub fn pdf_latex(input_string: &str) -> Result<Vec<u8>, tectonic::Error> {
         \usepackage{xcolor}
         \usepackage{dsfont}
         \begin{document}
-        $\displaystyle
         "#;
 
-    let template_end = r#"$
+    let template_end = r#"
         \end{document}
         "#;
 
@@ -73,4 +72,9 @@ pub fn convert_pdf_png(pdf_doc: &[u8]) -> Result<Vec<u8>, MagickError> {//TODO s
         .expect("Setting resolution failed!");
     wand.read_image_blob(pdf_doc).expect("Reading PDF failed!");
     wand.write_image_blob("png")
+}
+
+pub fn latex_tex_png(input_string: &str) -> Result<Vec<u8>, tectonic::Error> {
+    let pdf_doc = pdf_latex(input_string)?;
+    Ok(convert_pdf_png(&pdf_doc).expect("Image conversion failed!"))
 }
