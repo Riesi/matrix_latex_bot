@@ -1,14 +1,9 @@
 #![feature(pattern)]
 use std::{fs, process::exit};
-use std::str::pattern::Pattern ;
-use std::sync::Once;
+use std::str::pattern::Pattern;
 
-use serde_yaml;
-use serde::{Deserialize, Serialize};
-
-use tectonic;
-
-use magick_rust::{magick_wand_genesis, MagickError, MagickWand};
+mod latex_utils;
+mod bot_utils;
 
 use matrix_sdk::{
     self,
@@ -19,95 +14,6 @@ use matrix_sdk::{
     Client,
 };
 use url::Url;
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Credentials {
-    homeserver_url: String,
-    username: String,
-    password: String,
-}
-
-fn pdf_latex(input_string: &str) -> Result<Vec<u8>, tectonic::Error> {
-    let template_start = r#"\documentclass[preview]{standalone}
-        \usepackage[utf8]{inputenc}
-        \usepackage{amsfonts}
-        \usepackage{amssymb}
-        \usepackage{amsmath}
-        \usepackage{color}
-        \usepackage{xcolor}
-        \usepackage{dsfont}
-        \begin{document}
-        $\displaystyle
-        "#;
-
-    let template_end = r#"$
-        \end{document}
-        "#;
-
-    let mut status = tectonic::status::plain::PlainStatusBackend::default();
-
-    let auto_create_config_file = false;
-    let config = tectonic::config::PersistentConfig::open(auto_create_config_file).expect("Failed to open the default configuration file!");
-
-    let only_cached = false;
-    let bundle = config.default_bundle(only_cached, &mut status).expect("Failed to load the default resource bundle!");
-
-    let format_cache_path = config.format_cache_path().expect("Failed to set up the format cache!");
-
-    let mut files = {
-        // Looking forward to non-lexical lifetimes!
-        let mut sb = tectonic::driver::ProcessingSessionBuilder::default();
-        sb.bundle(bundle)
-            .primary_input_buffer((template_start.to_owned() + input_string + template_end).as_bytes())
-            .tex_input_name("texput.tex")
-            .format_name("latex")
-            .format_cache_path(format_cache_path)
-            .keep_logs(false)
-            .keep_intermediates(false)
-            .print_stdout(false)
-            .output_format(tectonic::driver::OutputFormat::Pdf)
-            .do_not_write_output_files();
-
-        let mut sess =
-            sb.create(&mut status).expect("Failed to initialize the LaTeX processing session!");
-
-        if let Err(w) = sess.run(&mut status) {
-            eprintln!("The LaTeX engine failed!");
-            return Err(w);
-        }
-        sess.into_file_data()
-    };
-    let pdf_bytes = match files.remove("texput.pdf") {
-        Some(file) => file.data,
-        None => vec![],
-    };
-
-    println!("Output PDF size is {} bytes", pdf_bytes.len());
-    Ok(pdf_bytes)
-}
-
-static START: Once = Once::new();
-
-fn resize_image() -> Result<Vec<u8>, MagickError> {
-    START.call_once(|| {
-        magick_wand_genesis();
-    });
-    let wand = MagickWand::new();
-    (wand.read_image("./frogJester.png")).expect("Reading image failed!");
-    wand.fit(64, 64);
-    wand.write_image_blob("jpeg")
-}
-
-fn convert_pdf_png(pdf_doc: &[u8]) -> Result<Vec<u8>, MagickError> {//TODO set background and font color
-    START.call_once(|| {
-        magick_wand_genesis();
-    });
-    let wand = MagickWand::new();
-    wand.set_resolution(500f64, 500f64)
-        .expect("Setting resolution failed!");
-    wand.read_image_blob(pdf_doc).expect("Reading PDF failed!");
-    wand.write_image_blob("png")
-}
 
 async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
     let Room::Joined(room) = room else { return };
@@ -128,7 +34,7 @@ async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
     }
 
     if "!res".is_prefix_of(&text_content.body) {
-        if let Ok(image) = resize_image(){
+        if let Ok(image) = latex_utils::resize_image(){
             room.send_attachment("scaled frog",
                                  &mime::IMAGE_JPEG,
                                  &image,
@@ -139,8 +45,8 @@ async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
     }
     if "!math".is_prefix_of(&text_content.body) {
         let tex_string = text_content.body.strip_prefix("!math").expect("Prefix not existing.");
-        if let Ok(pdf_doc) = pdf_latex(tex_string){
-            if let Ok(image) = convert_pdf_png(&pdf_doc) {
+        if let Ok(pdf_doc) = latex_utils::pdf_latex(tex_string){
+            if let Ok(image) = latex_utils::convert_pdf_png(&pdf_doc) {
                 room.send_attachment("fancy equation",
                                      &mime::IMAGE_PNG,
                                      &image,
@@ -164,7 +70,7 @@ async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
 }
 
 async fn login_and_sync(
-    cred: Credentials,
+    cred: bot_utils::Credentials,
 ) -> matrix_sdk::Result<()> {
     let homeserver_url = Url::parse(&cred.homeserver_url)
                                     .expect("Couldn't parse the homeserver URL!");
@@ -180,31 +86,14 @@ async fn login_and_sync(
     Ok(())
 }
 
-fn write_example_credentials(){
-    let cred = Credentials{
-            homeserver_url:"https://myserver.very.cool".to_string(),
-            username:"myuser".to_string(),
-            password: "hunter2".to_string()
-        };
-        let f = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .open("bot_credentials.yml")
-            .expect("Couldn't open file.");
-        serde_yaml::to_writer(f, &cred).unwrap();
-        println!("Failed to read credential file!\nExample file written instead.");
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    if let Ok(f) = std::fs::File::open("./bot_credentials.yml"){
-        if let Ok(cred) = serde_yaml::from_reader(f){
-            login_and_sync(cred).await.expect("Login failed!");
-            return Ok(());
-        }
+    if let Ok(cred) = bot_utils::read_credentials(){
+        login_and_sync(cred).await.expect("Login failed!");
+    }else{
+        bot_utils::write_example_credentials();
     }
-    write_example_credentials();
     return Ok(());
 }
