@@ -1,19 +1,10 @@
-#![feature(pattern)]
 use std::{process::exit};
-use std::str::pattern::Pattern;
 
 mod latex_utils;
 mod bot_utils;
 
-use matrix_sdk::{
-    self,
-    attachment::AttachmentConfig,
-    config::SyncSettings,
-    room::Room,
-    ruma::events::room::message::{MessageType, OriginalSyncRoomMessageEvent, RoomMessageEventContent},
-    Client,
-};
-use matrix_sdk::room::Joined;
+use matrix_sdk::{self, attachment::AttachmentConfig, config::SyncSettings, ruma::events::room::message::{MessageType, OriginalSyncRoomMessageEvent, RoomMessageEventContent}, Client};
+use matrix_sdk::room::{Joined, Room};
 use url::Url;
 
 async fn latex_handling(room: Joined, tex_string: String){
@@ -35,22 +26,22 @@ async fn latex_handling(room: Joined, tex_string: String){
 async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
     let Room::Joined(room) = room else { return };
     let MessageType::Text(text_content) = event.content.msgtype else { return };
-
-    if "!ping".is_prefix_of(&text_content.body) {
-        let content = RoomMessageEventContent::text_plain("🏓 pong 🏓");
-        room.send(content, None).await.expect("Pong failed!");
-    }
-
-    if "!math".is_prefix_of(&text_content.body) {
-        let tex_string = text_content.body.strip_prefix("!math").expect("Prefix not existing.");
-        latex_handling(room,("$\\displaystyle\n".to_owned() + tex_string + "$").to_string()).await;
-    }else if "!tex".is_prefix_of(&text_content.body) {
-        let tex_string = text_content.body.strip_prefix("!tex").expect("Prefix not existing.").to_string();
-        latex_handling(room,tex_string.to_string()).await;
-    }else if "!halt".is_prefix_of(&text_content.body) {
-        let content = RoomMessageEventContent::text_plain("Bye! 👋");
-        room.send(content, None).await.expect("Bye failed!");
-        exit(0);
+    if let Some(command_message) = text_content.body.strip_prefix('!'){
+        if let Some(_) = command_message.strip_prefix("ping") {
+            let content = RoomMessageEventContent::text_plain("🏓 pong 🏓");
+            room.send(content, None).await.expect("Pong failed!");
+        }else if let Some(message_string) = command_message.strip_prefix("math"){
+            latex_handling(room,("$\\displaystyle\n".to_owned() + message_string + "$").to_string()).await;
+        }else if let Some(message_string) = command_message.strip_prefix("tex"){
+            latex_handling(room,message_string.to_string()).await;
+        }else if let Some(_) = command_message.strip_prefix("halt"){
+            let content = RoomMessageEventContent::text_plain("Bye! 👋");
+            room.send(content, None).await.expect("Bye failed!");
+            exit(0);
+        }else{
+            let content = RoomMessageEventContent::text_plain("Unknown command! ⚠️");
+            room.send(content, None).await.expect("Message failed!");
+        }
     }
 }
 
