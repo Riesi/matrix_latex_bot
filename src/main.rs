@@ -27,20 +27,29 @@ async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
     let Room::Joined(room) = room else { return };
     let MessageType::Text(text_content) = event.content.msgtype else { return };
     if let Some(command_message) = text_content.body.strip_prefix('!'){
-        if let Some(_) = command_message.strip_prefix("ping") {
-            let content = RoomMessageEventContent::text_plain("🏓 pong 🏓");
-            room.send(content, None).await.expect("Pong failed!");
-        }else if let Some(message_string) = command_message.strip_prefix("math"){
-            latex_handling(room,("$\\displaystyle\n".to_owned() + message_string + "$").to_string()).await;
-        }else if let Some(message_string) = command_message.strip_prefix("tex"){
-            latex_handling(room,message_string.to_string()).await;
-        }else if let Some(_) = command_message.strip_prefix("halt"){
-            let content = RoomMessageEventContent::text_plain("Bye! 👋");
-            room.send(content, None).await.expect("Bye failed!");
-            exit(0);
-        }else{
-            let content = RoomMessageEventContent::text_plain("Unknown command! ⚠️");
-            room.send(content, None).await.expect("Message failed!");
+        let command_slice = if command_message.len() >=5 {&command_message[0..5]} else {command_message};
+        let split_pos = command_slice.find(' ').unwrap_or(command_slice.len());
+        let (match_slice, message_string) = command_message.split_at(split_pos);
+        match match_slice{
+            "ping" => {
+                let content = RoomMessageEventContent::text_plain("🏓 pong 🏓");
+                room.send(content, None).await.expect("Pong failed!");
+            },
+            "math" => {
+                latex_handling(room,("$\\displaystyle\n".to_owned() + message_string + "$").to_string()).await;
+            },
+            "tex" => {
+                latex_handling(room,message_string.to_string()).await;
+            },
+            "halt" => {
+                let content = RoomMessageEventContent::text_plain("Bye! 👋");
+                room.send(content, None).await.expect("Bye failed!");
+                exit(0);
+            },
+            _ =>{
+                let content = RoomMessageEventContent::text_plain("Unknown command! ⚠️");
+                room.send(content, None).await.expect("Message failed!");
+            }
         }
     }
 }
