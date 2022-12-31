@@ -1074,6 +1074,12 @@ checksum = "3dcaa9ae7725d12cdb85b3ad99a434db70b468c09ded17e012d86b5c1010f7a7"
 
 [[package]]
 name = "futures"
+version = "0.1.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a471a38ef8ed83cd6e40aa59c1ffe17db6855c18e3604d9c4ed8c08ebc28678"
+
+[[package]]
+name = "futures"
 version = "0.3.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38390104763dc37a5145a53c29c63c1290b5d316d6086ec32c293f6736051bb0"
@@ -1918,9 +1924,12 @@ name = "matrix_latex_bot"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "futures 0.1.31",
+ "lazy_static",
  "magick_rust",
  "matrix-sdk",
  "mime",
+ "once_cell",
  "serde",
  "serde_yaml",
  "tectonic",
@@ -4080,7 +4089,7 @@ version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be0ecb0db480561e9a7642b5d3e4187c128914e58aa84330b9493e3eb68c5e7f"
 dependencies = [
- "futures",
+ "futures 0.3.25",
  "js-sys",
  "parking_lot",
  "pin-utils",

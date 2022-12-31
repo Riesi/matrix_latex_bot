@@ -1,11 +1,26 @@
+#[macro_use]
+extern crate lazy_static;
+
 use std::{process::exit};
+use std::sync::Mutex;
 
 mod latex_utils;
 mod bot_utils;
+mod matrix_utils;
 
-use matrix_sdk::{self, attachment::AttachmentConfig, config::SyncSettings, ruma::events::room::message::{MessageType, OriginalSyncRoomMessageEvent, RoomMessageEventContent}, Client};
+use once_cell::sync::Lazy;
+
+use matrix_sdk::{self, attachment::AttachmentConfig, config::SyncSettings, Client};
+use matrix_sdk::ruma::events::room::message::{MessageType, OriginalSyncRoomMessageEvent, RoomMessageEventContent};
+use matrix_sdk::event_handler::{Ctx, EventHandler, SyncEvent};
 use matrix_sdk::room::{Joined, Room};
+use tokio::runtime::Handle;
 use url::Url;
+
+
+/*static GLOBAL_HANDLER: Lazy<Mutex<matrix_utils::Handler>> = Lazy::new(|| {
+    Mutex::new(matrix_utils::Handler::setup_commands())
+});*/
 
 async fn latex_handling(room: Joined, tex_string: String){
         if let Ok(image) = tokio::task::spawn_blocking(move || {
@@ -30,7 +45,20 @@ async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
         let command_slice = if command_message.len() >=5 {&command_message[0..5]} else {command_message};
         let split_pos = command_slice.find(' ').unwrap_or(command_slice.len());
         let (match_slice, message_string) = command_message.split_at(split_pos);
-        match match_slice{
+
+        let b = matrix_utils::HANDY.get_command("test").unwrap();
+        b(room, "test".to_string()).await;  //TODO .await changes on_room_message traits...; but without it the async doesnt run
+
+        /*if let Ok(guard) = GLOBAL_HANDLER.lock() {
+            if let Some(com) = guard.get_command(match_slice){
+                     com(room, "aaaa".to_string()).await;
+            }
+        } else {
+            let content = RoomMessageEventContent::text_plain("Command handler lock failed!");
+            room.send(content, None).await.expect("Command lock send failed!");
+        }*/
+        return;
+        /*match match_slice{
             "ping" => {
                 let content = RoomMessageEventContent::text_plain("🏓 pong 🏓");
                 room.send(content, None).await.expect("Pong failed!");
@@ -50,7 +78,7 @@ async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
                 let content = RoomMessageEventContent::text_plain("Unknown command! ⚠️");
                 room.send(content, None).await.expect("Message failed!");
             }
-        }
+        }*/
     }
 }
 
