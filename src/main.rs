@@ -1,27 +1,14 @@
-use std::{process::exit};
+extern crate lazy_static;
 
 mod latex_utils;
 mod bot_utils;
+mod matrix_utils;
 
-use matrix_sdk::{self, attachment::AttachmentConfig, config::SyncSettings, ruma::events::room::message::{MessageType, OriginalSyncRoomMessageEvent, RoomMessageEventContent}, Client};
-use matrix_sdk::room::{Joined, Room};
+use matrix_sdk::{self, config::SyncSettings, Client};
+use matrix_sdk::ruma::events::room::message::{MessageType, OriginalSyncRoomMessageEvent};
+
+use matrix_sdk::room::{Room};
 use url::Url;
-
-async fn latex_handling(room: Joined, tex_string: String){
-        if let Ok(image) = tokio::task::spawn_blocking(move || {
-            latex_utils::latex_tex_png(&tex_string)
-        }).await.expect("LaTeX future didn't hold!"){
-            room.send_attachment("LaTeX image",
-                                 &mime::IMAGE_PNG,
-                                 &image,
-                                 AttachmentConfig::new())
-                .await
-                .expect("Sending equation failed!");
-        }else{
-            let content = RoomMessageEventContent::text_plain("Invalid syntax!");
-            room.send(content, None).await.expect("Feedback failed!");
-        }
-}
 
 async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
     let Room::Joined(room) = room else { return };
@@ -30,27 +17,10 @@ async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
         let command_slice = if command_message.len() >=5 {&command_message[0..5]} else {command_message};
         let split_pos = command_slice.find(' ').unwrap_or(command_slice.len());
         let (match_slice, message_string) = command_message.split_at(split_pos);
-        match match_slice{
-            "ping" => {
-                let content = RoomMessageEventContent::text_plain("🏓 pong 🏓");
-                room.send(content, None).await.expect("Pong failed!");
-            },
-            "math" => {
-                latex_handling(room,("$\\displaystyle\n".to_owned() + message_string + "$").to_string()).await;
-            },
-            "tex" => {
-                latex_handling(room,message_string.to_string()).await;
-            },
-            "halt" => {
-                let content = RoomMessageEventContent::text_plain("Bye! 👋");
-                room.send(content, None).await.expect("Bye failed!");
-                exit(0);
-            },
-            _ =>{
-                let content = RoomMessageEventContent::text_plain("Unknown command! ⚠️");
-                room.send(content, None).await.expect("Message failed!");
-            }
-        }
+
+        let command = matrix_utils::HANDY.get_command(match_slice);
+        command(room, message_string.to_string());
+
     }
 }
 

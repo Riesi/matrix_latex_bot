@@ -1918,6 +1918,7 @@ name = "matrix_latex_bot"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "lazy_static",
  "magick_rust",
  "matrix-sdk",
  "mime",
