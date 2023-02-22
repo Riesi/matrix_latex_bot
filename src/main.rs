@@ -14,7 +14,9 @@ async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
     let Room::Joined(room) = room else { return };
     let MessageType::Text(text_content) = event.content.msgtype else { return };
     if let Some(command_message) = text_content.body.strip_prefix('!'){
-        let command_slice = if command_message.len() >=5 {&command_message[0..5]} else {command_message};
+        let command_slice = if command_message.len() >= *matrix_utils::MAX_COMMAND_LENGTH {
+            &command_message[0..*matrix_utils::MAX_COMMAND_LENGTH]
+        } else {command_message};
         let split_pos = command_slice.find(' ').unwrap_or(command_slice.len());
         let (match_slice, message_string) = command_message.split_at(split_pos);
 

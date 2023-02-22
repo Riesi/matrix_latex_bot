@@ -112,4 +112,5 @@ lazy_static! {
         com.insert(Halt::get_command_name() , Halt::handle_message);
         Handler{command_list: com}
     };
+    pub static ref MAX_COMMAND_LENGTH : usize = HANDY.command_list.keys().max_by_key(|k| k.len()).unwrap().len();
 }
