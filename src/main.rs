@@ -4,11 +4,14 @@ mod latex_utils;
 mod bot_utils;
 mod matrix_utils;
 
-use matrix_sdk::{self, config::SyncSettings, Client};
+use std::env;
+use std::path::PathBuf;
+use matrix_sdk::{self, config::SyncSettings, Client, Session};
 use matrix_sdk::ruma::events::room::message::{MessageType, OriginalSyncRoomMessageEvent};
 
 use matrix_sdk::room::{Room};
 use url::Url;
+use crate::bot_utils::{Credentials, TokenLoginData};
 
 async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
     let Room::Joined(room) = room else { return };
@@ -26,18 +29,55 @@ async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
     }
 }
 
-async fn login_and_sync(
-    cred: bot_utils::Credentials,
+async fn authenticate_sync(
+    cred: bot_utils::MatrixLogin, encryption_password: &String
 ) -> matrix_sdk::Result<()> {
     let homeserver_url = Url::parse(&cred.homeserver_url)
                                     .expect("Couldn't parse the homeserver URL!");
-    let client = Client::new(homeserver_url).await.expect("Client constructor failed!");
+    let path = PathBuf::from("./crypto_sled");
+    let builder = Client::builder().homeserver_url(homeserver_url).sled_store(path, Some(encryption_password)).expect("SLED creation failed!");
+    let client = builder.build().await.expect("Client constructor failed!");
 
-    client.login_username(&cred.username, &cred.password)
-            .initial_device_display_name("command bot")
-            .send().await.expect("Login failed!");
+    let login_response = client.login_username(&cred.user_name, &cred.password).initial_device_display_name("Matrix-Bot")
+        .send().await?;
+
+    let token_cred = Credentials {
+    homeserver_url: cred.homeserver_url,
+    token_login: TokenLoginData {
+        access_token: login_response.access_token,
+        device_id: login_response.device_id.to_owned(),
+        user_id: login_response.user_id.to_owned(),
+    }};
+    bot_utils::write_credentials(&token_cred).expect("Failed to write tokens for later logins!");
+
+    client.sync_once(SyncSettings::default()).await.unwrap();
+    Ok(())
+}
+
+async fn login_and_sync(
+    cred: bot_utils::Credentials, encryption_password: &String
+) -> matrix_sdk::Result<()> {
+    let homeserver_url = Url::parse(&cred.homeserver_url)
+                                    .expect("Couldn't parse the homeserver URL!");
+
+    let path = PathBuf::from("./crypto_sled");
+    let builder = Client::builder().homeserver_url(homeserver_url).sled_store(path, Some(encryption_password)).expect("SLED creation failed!");
+    let client = builder.build().await.expect("Client constructor failed!");
+
+    let session = Session {
+        access_token: cred.token_login.access_token,
+        refresh_token: None,
+        user_id: cred.token_login.user_id.to_owned(),
+        device_id:  cred.token_login.device_id.to_owned(),
+    };
+
+
+    client.restore_login(session).await.expect("Failed to login with tokens! This is bad!");
+
     let response = client.sync_once(SyncSettings::default()).await.unwrap();
+
     client.add_event_handler(move |ev, room| on_room_message(ev, room));
+
     let rooms = client.invited_rooms();
     for room in rooms{ // TODO don't blindly join every invite
         println!("user_id: {}, room_id: {}", room.client().user_id().unwrap(), room.room_id());
@@ -53,10 +93,18 @@ async fn login_and_sync(
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
+    let encryption_password;
+    if let Ok(pw) = env::var("MATRIX_BOT_CRYPTO_PW"){
+        encryption_password = pw.to_string()
+    }else {
+        encryption_password = bot_utils::prompt_passwd();
+    }
+
     if let Ok(cred) = bot_utils::read_credentials(){
-        login_and_sync(cred).await.expect("Login failed!");
+        login_and_sync(cred, &encryption_password).await.expect("Login failed!");
     }else{
-        bot_utils::write_example_credentials();
+        let login_data = bot_utils::MatrixLogin::prompt_login() ;
+        authenticate_sync(login_data, &encryption_password).await.expect("Authentication failed!");
     }
     return Ok(());
 }
