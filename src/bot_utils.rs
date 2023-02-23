@@ -59,3 +59,44 @@ pub fn write_credentials(cred: &Credentials) -> serde_yaml::Result<()>{
     Ok(())
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ConfigStruct{
+    pub prefix: char,
+}
+impl Default for ConfigStruct{
+    fn default() -> Self {
+        ConfigStruct{
+            prefix: '!',
+        }
+    }
+}
+
+pub fn write_example_config() -> ConfigStruct{
+    let cfg = ConfigStruct::default();
+    let f = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open("bot_config.yml")
+        .expect("Couldn't open file.");
+    serde_yaml::to_writer(f, &cfg).unwrap();
+    println!("Failed to read config file!\nExample file written instead.");
+    cfg
+}
+
+pub fn read_config() -> Result<ConfigStruct, Box<dyn error::Error>>{
+    let f = std::fs::File::open("./bot_config.yml")?;
+    Ok::<ConfigStruct, _>(serde_yaml::from_reader(f)?)
+}
+
+pub fn write_config(cfg: &ConfigStruct) -> serde_yaml::Result<()>{
+    {
+        let f = std::fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open("bot_config.yml")
+            .expect("Couldn't open file.");
+        serde_yaml::to_writer(&f, cfg)?;
+    }
+    Ok(())
+}

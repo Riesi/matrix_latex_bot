@@ -6,6 +6,7 @@ mod matrix_utils;
 
 use std::env;
 use std::path::PathBuf;
+use lazy_static::lazy_static;
 use matrix_sdk::{self, config::SyncSettings, Client, Session};
 use matrix_sdk::ruma::events::room::message::{MessageType, OriginalSyncRoomMessageEvent};
 
@@ -13,10 +14,20 @@ use matrix_sdk::room::{Room};
 use url::Url;
 use crate::bot_utils::{Credentials, TokenLoginData};
 
+lazy_static! {
+    pub static ref BOT_CONFIG: bot_utils::ConfigStruct = {
+        if let Ok(cfg) = bot_utils::read_config(){
+            cfg
+        } else {
+            bot_utils::write_example_config()
+        }
+    };
+}
+
 async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
     let Room::Joined(room) = room else { return };
     let MessageType::Text(text_content) = event.content.msgtype else { return };
-    if let Some(command_message) = text_content.body.strip_prefix('!'){
+    if let Some(command_message) = text_content.body.strip_prefix(BOT_CONFIG.prefix){
         let command_slice = if command_message.len() >= *matrix_utils::MAX_COMMAND_LENGTH {
             &command_message[0..*matrix_utils::MAX_COMMAND_LENGTH]
         } else {command_message};
@@ -92,6 +103,8 @@ async fn login_and_sync(
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
+
+    lazy_static::initialize(&BOT_CONFIG);
 
     let encryption_password;
     if let Ok(pw) = env::var("MATRIX_BOT_CRYPTO_PW"){
