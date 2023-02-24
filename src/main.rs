@@ -3,6 +3,7 @@ extern crate lazy_static;
 mod latex_utils;
 mod bot_utils;
 mod matrix_utils;
+mod bot_commands;
 
 use std::env;
 use std::path::PathBuf;
@@ -34,7 +35,7 @@ async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
         let split_pos = command_slice.find(' ').unwrap_or(command_slice.len());
         let (match_slice, message_string) = command_message.split_at(split_pos);
 
-        let command = matrix_utils::HANDY.get_command(match_slice);
+        let command = matrix_utils::COMMAND_HANDLER.get_command(match_slice);
         command(room, message_string.to_string());
 
     }
