@@ -68,3 +68,20 @@ fn unknown(room: Joined, _data: String) {
         room.send(content, None).await.expect("Message failed!");
     });
 }
+
+pub enum ParsedMessage<'a>{
+    Reply(&'a str, &'a str),
+    Message(&'a str),
+    Undefined
+}
+
+pub fn parse_message<'a>(message: &str) -> ParsedMessage{
+    if message.starts_with('>') {
+        match message.split_once("\n\n"){
+            Some(text) => ParsedMessage::Reply(text.0, text.1),
+            None => ParsedMessage::Undefined
+        }
+    }else{
+        ParsedMessage::Message(message)
+    }
+}

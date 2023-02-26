@@ -14,6 +14,7 @@ use matrix_sdk::ruma::events::room::message::{MessageType, OriginalSyncRoomMessa
 use matrix_sdk::room::{Room};
 use url::Url;
 use crate::bot_utils::{Credentials, TokenLoginData};
+use crate::matrix_utils::ParsedMessage;
 
 lazy_static! {
     pub static ref BOT_CONFIG: bot_utils::ConfigStruct = {
@@ -27,8 +28,16 @@ lazy_static! {
 
 async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
     let Room::Joined(room) = room else { return };
-    let MessageType::Text(text_content) = event.content.msgtype else { return };
-    if let Some(command_message) = text_content.body.strip_prefix(BOT_CONFIG.prefix){
+    let MessageType::Text(text_content) =  event.content.msgtype else { return };
+
+    let parsed_body = matrix_utils::parse_message(&text_content.body);
+    let text_body = match parsed_body {
+        ParsedMessage::Reply(_reply_content, text) => text,
+        ParsedMessage::Message(text) => text,
+        ParsedMessage::Undefined => {println!("Unknown text body: {}", text_content.body); return}
+    };
+
+    if let Some(command_message) = text_body.strip_prefix(BOT_CONFIG.prefix){
         let command_slice = if command_message.len() >= *matrix_utils::MAX_COMMAND_LENGTH {
             &command_message[0..*matrix_utils::MAX_COMMAND_LENGTH]
         } else {command_message};
