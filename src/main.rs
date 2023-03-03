@@ -5,13 +5,13 @@ mod bot_utils;
 mod matrix_utils;
 mod bot_commands;
 
-use std::env;
+use std::{env};
 use std::path::PathBuf;
 use lazy_static::lazy_static;
 use matrix_sdk::{self, config::SyncSettings, Client, Session};
 use matrix_sdk::ruma::events::room::message::{MessageType, OriginalSyncRoomMessageEvent};
-
 use matrix_sdk::room::{Room};
+
 use url::Url;
 use crate::bot_utils::{Credentials, TokenLoginData};
 use crate::matrix_utils::ParsedMessage;
@@ -28,7 +28,7 @@ lazy_static! {
 
 async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
     let Room::Joined(room) = room else { return };
-    let MessageType::Text(text_content) =  event.content.msgtype else { return };
+    let MessageType::Text(text_content) =  event.content.msgtype.clone() else { return };
 
     let parsed_body = matrix_utils::parse_message(&text_content.body);
     let text_body = match parsed_body {
@@ -38,14 +38,17 @@ async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room) {
     };
 
     if let Some(command_message) = text_body.strip_prefix(BOT_CONFIG.prefix){
-        let command_slice = if command_message.len() >= *matrix_utils::MAX_COMMAND_LENGTH {
-            &command_message[0..*matrix_utils::MAX_COMMAND_LENGTH]
+        let command_slice = if command_message.len() >= matrix_utils::fancy_GROUP.commands.max_command_size {
+            &command_message[0..matrix_utils::fancy_GROUP.commands.max_command_size]
         } else {command_message};
         let split_pos = command_slice.find(' ').unwrap_or(command_slice.len());
         let (match_slice, message_string) = command_message.split_at(split_pos);
 
-        let command = matrix_utils::COMMAND_HANDLER.get_command(match_slice);
-        command(room, message_string.to_string());
+        if let Some(command) = matrix_utils::fancy_GROUP.commands.get_command(match_slice) {
+            (command.fun)(event, room, message_string.to_string());
+        }else {
+            matrix_utils::unknown(room, message_string.to_string());
+        }
 
     }
 }
@@ -112,6 +115,7 @@ async fn login_and_sync(
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+
     tracing_subscriber::fmt::init();
 
     lazy_static::initialize(&BOT_CONFIG);

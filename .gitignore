@@ -3,4 +3,4 @@
 .idea
 /crypto_sled
 /bot_config.yml
-/command_framework/target
+/**/target

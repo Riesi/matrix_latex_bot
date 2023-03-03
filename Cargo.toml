@@ -15,6 +15,9 @@ name = "matrix_latex_bot"
 test = false
 
 [dependencies]
+command_framework = { path = "./command_framework" }
+command_structures = { path = "./command_structures" }
+
 lazy_static = "1.4.0"
 
 rpassword = "7.2.0"
