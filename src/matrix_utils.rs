@@ -5,7 +5,7 @@ use matrix_sdk::room::{Joined};
 use matrix_sdk::ruma::events::room::message::{OriginalSyncRoomMessageEvent, RoomMessageEventContent};
 
 use command_framework::{check,command, group};
-use command_structures::structures::{CheckResult};
+use command_structures::structures::{CheckResult, CommandResult};
 use command_structures::structures::CheckFailed;
 
 use crate::{latex_utils};
